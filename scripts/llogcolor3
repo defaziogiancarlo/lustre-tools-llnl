@@ -23,8 +23,8 @@
 import argparse
 import datetime
 import fileinput
-import optparse
 import os
+import pathlib
 import re
 import sys
 import subprocess
@@ -97,13 +97,13 @@ def next_ansi_color():
     return next_color
 
 
-usage = """usage: %prog [options] [log1] [log2] ... [logN]
+# usage = """usage: %prog [options] [log1] [log2] ... [logN]
 
-%prog accepts a lustre log on stdin or as a filename on the command line,
-and outputs a colorized version of the log.  Lines are colored by task id.
-By default, and if stdout is a tty, %prog calls the pager (less) to display
-the colorized log.
-""".strip()
+# %prog accepts a lustre log on stdin or as a filename on the command line,
+# and outputs a colorized version of the log.  Lines are colored by task id.
+# By default, and if stdout is a tty, %prog calls the pager (less) to display
+# the colorized log.
+# """.strip()
 
 description = """
 %prog accepts a lustre log on stdin or as a filename on the command line,
@@ -115,55 +115,67 @@ the colorized log.
 
 def main():
     # Parse command-line options
-    p = optparse.OptionParser(usage=usage)
-    p.add_option(
-        "-d", "--date", action="store_true", help="convert date to human-readable form",
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        "-d",
+        "--date",
+        action="store_true",
+        help="convert date to human-readable form",
     )
-    p.add_option(
+    parser.add_argument(
         "-s",
         "--split",
         action="store_true",
         help="create a separate file for each thread",
     )
-    p.add_option(
+    parser.add_argument(
         "-t",
         "--thread",
-        type="string",
+        type=str,
         metavar="TID",
         help="highlight one thread in a unique color (black on cyan)",
     )
-    p.add_option(
+    parser.add_argument(
         "-P",
         "--no-pager",
         action="store_false",
         dest="pager",
         help="disable the pager, just write to stdout",
     )
-    p.add_option(
+    parser.add_argument(
         "-C",
         "--no-color",
         action="store_false",
         dest="color",
         help="disable all colorization",
     )
-    p.set_defaults(color=True)
-    p.set_defaults(pager=True)
-    p.set_defaults(split=False)
-    p.set_defaults(date=False)
-    options, args = p.parse_args()
+    parser.add_argument(
+        "files",
+        nargs="*",
+        help="the log files to be processed",
+    )
+    # TODO need to have option for the filename, which is optional, and use stdin
+    # otherwise
+
+    args = parser.parse_args()
+
+    print(args)
 
     if not sys.stdout.isatty():
-        options.pager = False
+        args.pager = False
 
-    split_dir = "/tmp/llogcolor.%d" % (os.getpid())
-    combined = os.path.join(split_dir, "combined")
+    split_dir = pathlib.Path("/tmp/llogcolor.{}".format(os.getpid()))
+    combined = split_dir / "combined"
 
-    if options.split:
-        os.mkdir(split_dir)
-        output = open(combined, "w")
+    if args.split:
+        # NOTE the mode here is the default, which is 0777
+        # and is unchanged from the python2 version
+        split_dir.mkdir()
+        output = combined.open(mode='w')
         pager = None
+        # TODO figure out why 'pass' is here
         pass
-    elif options.pager:
+    elif args.pager:
         pager = subprocess.Popen(["less", "-KXRS"], stdin=subprocess.PIPE)
         output = pager.stdin
     else:
@@ -174,7 +186,9 @@ def main():
     thread_color = {}
     thread_file = {}
     try:
-        for line in fileinput.input(files=args):
+        # TODO update this to be files, not args
+        # depends on adding positional args to the parser
+        for line in fileinput.input(files=args.files):
             result = pattern.match(line)
             if not result:
                 output.write(line)
@@ -184,16 +198,16 @@ def main():
             ts = result.group("timestamp")
 
             if tid not in thread_color:
-                if not options.color:
+                if not args.color:
                     thread_color[tid] = ""
-                elif tid == options.thread:
+                elif tid == args.thread:
                     thread_color[tid] = colors["black"] + colors["on_cyan"]
                 else:
                     thread_color[tid] = next_ansi_color()
-                if options.split:
+                if args.split:
                     thread_file[tid] = open(os.path.join(split_dir, tid), "w")
 
-            if options.date:
+            if args.date:
                 ts = str(datetime.datetime.fromtimestamp(float(ts)))
                 line = (
                     thread_color[tid]
@@ -216,8 +230,12 @@ def main():
                     + "\n"
                 )
 
-            output.write(line)
-            if options.split:
+            # NOTE this a python2 vs python3 differnce
+            # python2 wanted a string, python3 wants bytes
+            # TODO should this be ascii?
+            # be default encode() does utf-8
+            output.write(line.encode())
+            if args.split:
                 thread_file[tid].write(line)
     except KeyboardInterrupt:
         if pager:
@@ -231,20 +249,20 @@ def main():
             return 0
         raise
 
-    if options.color:
-        output.write(colors["default"])
+    if args.color:
+        output.write(colors["default"].encode())
     output.close()
 
-    if options.split:
+    if args.split:
         for f in thread_file.values():
-            if options.color:
+            if args.color:
                 f.write(colors["default"])
             f.close()
         filenames = [int(x) for x in thread_file.keys()]
         filenames.sort()
         filenames = [os.path.join(split_dir, str(x)) for x in filenames]
         filenames = [combined] + filenames
-        if options.pager:
+        if args.pager:
             try:
                 pager = subprocess.Popen(["less", "-RK", "--force"] + filenames)
                 pager.wait()
