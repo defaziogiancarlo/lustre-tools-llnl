@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 # Copyright (c) 2014, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
 # Written by Christopher J. Morrone <morrone2@llnl.gov>
@@ -24,23 +22,42 @@
 # in that dataset, this script will call zdb to retreive the Lustre FID
 # and print it out in standard Lustre FID format.
 
+import argparse
 import sys
 import subprocess
 
 def from_bytes(b):
     return sum(b[i] << i*8 for i in range(len(b)))
 
-def main():
-    if len(sys.argv) != 3:
-        print "Usage:", sys.argv[0], "<dataset> <object>"
-        return 1
+description="""
+Given a zfs dataset for a Lustre OST and the object number of a file
+in that dataset, this script will call zdb to retreive the Lustre FID
+and print it out in standard Lustre FID format.
+""".strip()
 
-    p = subprocess.Popen(["zdb", "-vvv", sys.argv[1], sys.argv[2]],
-                          stdout=subprocess.PIPE)
-    pout, perr = p.communicate()
+parser = argparse.ArgumentParser(description=description)
+
+parser.add_argument(
+    'dataset',
+    help='the name of the zfs dataset',
+)
+parser.add_argument(
+    'object',
+    help='the number of the object',
+)
+
+def main():
+
+    args = parser.parse_args()
+
+    p = subprocess.run(["zdb", "-vvv", args.dataset, args.object],
+                       stdout=subprocess.PIPE,
+                       check=True)
+
+    zdb_output = p.stdout.decode()
 
     b = bytearray()
-    for line in pout.split('\n'):
+    for line in zdb_output.split('\n'):
         part = line.split()
         if not part or part[0] != 'trusted.fid':
             continue

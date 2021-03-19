@@ -88,16 +88,15 @@ color_round_robin = [
     "bright_red",
 ]
 
-
 def next_ansi_color():
     next_color = colors[color_round_robin[0]]
     color_round_robin.append(color_round_robin.pop(0))  # rotate the list
     return next_color
 
 description = """
-%prog accepts a lustre log on stdin or as a filename on the command line,
+accepts a lustre log on stdin or as a filename on the command line,
 and outputs a colorized version of the log.  Lines are colored by task id.
-By default, and if stdout is a tty, %prog calls the pager (less) to display
+By default, and if stdout is a tty, the pager (less) is called to display
 the colorized log.
 """.strip()
 
@@ -142,8 +141,6 @@ def main(test_args=None):
         nargs="*",
         help="the log files to be processed",
     )
-    # TODO need to have option for the filename, which is optional, and use stdin
-    # otherwise
 
     # allow for testing with different arguments here
     # if __name__ == '__main__', test_args will be None
@@ -194,7 +191,7 @@ def main(test_args=None):
                 else:
                     thread_color[tid] = next_ansi_color()
                 if args.split:
-                    thread_file[tid] = open(os.path.join(split_dir, tid), "w")
+                    thread_file[tid] = (split_dir / tid).open("w")
 
             if args.date:
                 ts = str(datetime.datetime.fromtimestamp(float(ts)))
@@ -239,7 +236,7 @@ def main(test_args=None):
         raise
 
     if args.color:
-        output.write(colors["default"])
+        output.write(colors["default"].encode())
     output.close()
 
     if args.split:
@@ -249,7 +246,7 @@ def main(test_args=None):
             f.close()
         filenames = [int(x) for x in thread_file.keys()]
         filenames.sort()
-        filenames = [os.path.join(split_dir, str(x)) for x in filenames]
+        filenames = [split_dir / str(x) for x in filenames]
         filenames = [combined] + filenames
         if args.pager:
             try:
@@ -258,8 +255,8 @@ def main(test_args=None):
             except KeyboardInterrupt:
                 pager.send_signal(signal.SIGINT)
             for f in filenames:
-                os.remove(f)
-            os.rmdir(split_dir)
+                f.unlink()
+                split_dir.rmdir()
         else:
             print("Split log files are located in", split_dir)
     elif pager:

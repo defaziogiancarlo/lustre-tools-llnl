@@ -31,6 +31,8 @@ in_simple = '/home/defazio1/lustre-tools-llnl/scripts/color_samples/sample_logs'
 
 # [-P, -C, in_simple]
 out_P_C_simple = '/home/defazio1/lustre-tools-llnl/scripts/color_samples/sample_logs'
+# [-C, in_simple]
+out_P_simple = '/home/defazio1/lustre-tools-llnl/scripts/color_samples/out_simple_color'
 
 def cmp_stdout_to_ref(test_args, reference):
     '''
@@ -82,7 +84,21 @@ def test_P_C_simple():
 
     assert cmp_stdout_to_ref(test_args, reference)
 
+def test_P_simple():
+    '''
+    read a log file in, and send the text to stdout.
+    In this case the text includes the terminal color codes
+    In this case all the lines will have the same color code.
+    '''
 
+    # no pager
+    test_args = ['-P', in_simple]
+    reference = out_P_simple
+
+    assert cmp_stdout_to_ref(test_args, reference)
+
+
+#def no_files():
 
 
 

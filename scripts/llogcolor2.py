@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 # Copyright (c) 2011, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
 # Written by Christopher J. Morrone <morrone2@llnl.gov>
