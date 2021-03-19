@@ -37,7 +37,7 @@ colors =  { 'default'       :    "\033[0m",
             'reverse'       :    "\033[7m",
             'concealed'     :    "\033[8m",
 
-            'black'         :    "\033[30m", 
+            'black'         :    "\033[30m",
             'red'           :    "\033[31m",
             'green'         :    "\033[32m",
             'yellow'        :    "\033[33m",
@@ -46,7 +46,7 @@ colors =  { 'default'       :    "\033[0m",
             'cyan'          :    "\033[36m",
             'white'         :    "\033[37m",
 
-            'bright_black'  :    "\033[90m", 
+            'bright_black'  :    "\033[90m",
             'bright_red'    :    "\033[91m",
             'bright_green'  :    "\033[92m",
             'bright_yellow' :    "\033[93m",
@@ -55,7 +55,7 @@ colors =  { 'default'       :    "\033[0m",
             'bright_cyan'   :    "\033[96m",
             'bright_white'  :    "\033[97m",
 
-            'on_black'      :    "\033[40m", 
+            'on_black'      :    "\033[40m",
             'on_red'        :    "\033[41m",
             'on_green'      :    "\033[42m",
             'on_yellow'     :    "\033[43m",
@@ -90,7 +90,7 @@ By default, and if stdout is a tty, %prog calls the pager (less) to display
 the colorized log.
 """.strip()
 
-def main():
+def main(test_args=None):
     # Parse command-line options
     p = optparse.OptionParser(usage=usage)
     p.add_option('-d', '--date', action='store_true',
@@ -107,7 +107,8 @@ def main():
     p.set_defaults(pager=True)
     p.set_defaults(split=False)
     p.set_defaults(date=False)
-    options, args = p.parse_args()
+
+    options, args = p.parse_args(args=test_args)
 
     if not sys.stdout.isatty():
         options.pager = False

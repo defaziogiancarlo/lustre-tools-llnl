@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright (c) 2011, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
 # Written by Christopher J. Morrone <morrone2@llnl.gov>
@@ -68,10 +66,10 @@ colors = {
 # 00000020:00000080:2.0F:1192055998.876285:0:6848:0:(obd_config.c:714:class_process_config()) processing cmd: cf003
 pattern = re.compile(
     r"(?P<begin>    \d+:\d+:\d+(\.\d+)?F?:)"
-    "(?P<timestamp> \d+\.\d+)"
-    "(?P<middle>    :\d+:)"
-    "(?P<threadid>  \d+)"
-    "(?P<end>       :.+)",
+    r"(?P<timestamp> \d+\.\d+)"
+    r"(?P<middle>    :\d+:)"
+    r"(?P<threadid>  \d+)"
+    r"(?P<end>       :.+)",
     re.VERBOSE,
 )
 
@@ -96,15 +94,6 @@ def next_ansi_color():
     color_round_robin.append(color_round_robin.pop(0))  # rotate the list
     return next_color
 
-
-# usage = """usage: %prog [options] [log1] [log2] ... [logN]
-
-# %prog accepts a lustre log on stdin or as a filename on the command line,
-# and outputs a colorized version of the log.  Lines are colored by task id.
-# By default, and if stdout is a tty, %prog calls the pager (less) to display
-# the colorized log.
-# """.strip()
-
 description = """
 %prog accepts a lustre log on stdin or as a filename on the command line,
 and outputs a colorized version of the log.  Lines are colored by task id.
@@ -112,8 +101,7 @@ By default, and if stdout is a tty, %prog calls the pager (less) to display
 the colorized log.
 """.strip()
 
-
-def main():
+def main(test_args=None):
     # Parse command-line options
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
@@ -157,9 +145,10 @@ def main():
     # TODO need to have option for the filename, which is optional, and use stdin
     # otherwise
 
-    args = parser.parse_args()
-
-    print(args)
+    # allow for testing with different arguments here
+    # if __name__ == '__main__', test_args will be None
+    # and sys.argv will be used
+    args = parser.parse_args(args=test_args)
 
     if not sys.stdout.isatty():
         args.pager = False
@@ -191,7 +180,7 @@ def main():
         for line in fileinput.input(files=args.files):
             result = pattern.match(line)
             if not result:
-                output.write(line)
+                output.write(line.encode())
                 continue
 
             tid = result.group("threadid")
@@ -250,7 +239,7 @@ def main():
         raise
 
     if args.color:
-        output.write(colors["default"].encode())
+        output.write(colors["default"])
     output.close()
 
     if args.split:
