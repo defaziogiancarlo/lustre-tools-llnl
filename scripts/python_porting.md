@@ -39,18 +39,21 @@ The important stuff is:
 Also, there aren't any tests that I know of, so some amount of testing
 needs to be done to ensure the new versions function like the old ones.
 
-As for how to test, many of these scripts are mean to be used
-from the command line and parser their arguments with `optparse` (or `argparse`).
+As for how to test, many of these scripts are meant to be used
+from the command line and parse their arguments with `optparse` (or `argparse`).
 It's possible to script this by making a slight modification, where a list of strings,
 instead of `sys.argv` is given to the parser.
 
 For the testing branch, I've removed the `#!` from the files and created a
-<scrip\_name>2.py and <script\_name>3.py or each, and and using conda to change
+<scrip\_name>2.py and <script\_name>3.py or each, and am using conda to change
 between python environments. Then a check is done based on the interpreter version
 to import the python version 2 or 3 script. Then, in both cases, I can run the test
 script with `pytest` and the correct version will be tested based on the conda environment.
 
 Also, everyting should be tested on lustre 2.12 and 2.14.
+Another issue is that I'm testing on my personal computer, eventually I'll need to test on the llnl
+systems. The python2 version I got from conda doesn't match what llnl has right now.
+
 ## Comments and TODOs for each script
 
 ### ldev2pcs
