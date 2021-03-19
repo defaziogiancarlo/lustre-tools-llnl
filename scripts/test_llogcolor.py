@@ -16,7 +16,7 @@ import tempfile
 
 import pytest
 
-if '3.6' in sys.version:
+if '3.6' in sys.version or '3.7' in sys.version:
     import llogcolor3 as llogcolor
 elif '2.7' in sys.version:
     import llogcolor2 as llogcolor
