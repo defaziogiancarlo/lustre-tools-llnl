@@ -5,32 +5,34 @@ import re
 import sys
 import subprocess
 
-
 skip_pattern = re.compile('^\s*(#.*)?\n?$')
 def should_skip(line):
-    """Returns true is the line contains only a comment or whitespace"""
+    """Returns true if the line contains only a comment or whitespace."""
     if skip_pattern.match(line):
         return True
     return False
 
 # Assume line in ldev looks like this for zfs:
 #  jet1   jet2   lquake-MGS0000  zfs:jet1-1/mgs
-def process_ldev_line(line):
+def process_ldev_line(line, all_nodes, all_zpools, all_lustre_services):
 
+    # TODO what if there's a comment after the text ?
+    # find out if that's allowed
     fields = line.split()
     if len(fields) != 4:
-        sys.stderr.write('Wrong number of fields in line: '+line+'\n')
+        print(f'Wrong number of fields in line: {line}', file=sys.stderr)
         sys.exit(1)
     node1, node2, lustre_service_name, zfs_dataset = fields
     nodes = [node1, node2]
 
     if zfs_dataset[:4] != 'zfs:':
-        sys.stderr.write('Fourth field is not prefixed with "zfs:"\n')
+        print('Fourth field is not prefixed with "zfs:"', file=sys.stderr)
         sys.exit(1)
     zfs_dataset = zfs_dataset[4:]
 
     if 'MGS' in lustre_service_name and lustre_service_name != 'MGS':
-        sys.stderr.write('WARNING: Target name "'+lustre_service_name+'" is not valid, using "MGS" instead\n')
+        print(f'WARNING: Target name "{lustre_service_name}" is not valid, '
+              'using "MGS" instead', file=sys.stderr)
         lustre_service_name = 'MGS'
 
     for node in nodes:
@@ -41,7 +43,8 @@ def process_ldev_line(line):
     if zpool in all_zpools:
         # Sanity check
         if not set(all_zpools[zpool]).issuperset(set(nodes)):
-            sys.stderr.write('zpool "'+zpool+'" already instantiated on incompatible set of nodes\n')
+            print('zpool "{zpool}" already instantiated on '
+                  'incompatible set of nodes', file=sys.stderr)
             sys.exit(1)
     elif zpool not in all_zpools:
         # Add zpool resource
@@ -51,13 +54,12 @@ def process_ldev_line(line):
     all_lustre_services[lustre_service_name] = (zpool, zfs_dataset)
     lustre_service_order.append(lustre_service_name)
 
-def deduce_cluster_name():
+def deduce_cluster_name(all_nodes):
     """Deduce the name of the cluster from the name of one node.
 
     Strip the trailing digits off the end of the node name, and that probably
-    gives us the name of the cluster.  At least at LLNL."""
-    global all_nodes
-
+    gives us the name of the cluster.  At least at LLNL.
+    """
     node = all_nodes[0]
 
     return node.rstrip('0123456789')
@@ -75,7 +77,7 @@ def run(cmd, args):
         elif rc > 0:
             print(f"Error: {rc}", file=sys.stderr)
     except OSError as e:
-        print("Execution failed: {e}", file=sys.stderr)
+        print(f"Execution failed: {e}", file=sys.stderr)
 
 def configure_location(resource, nodes, fixed_score_string=None):
     if fixed_score_string is None:
@@ -91,7 +93,7 @@ def configure_location(resource, nodes, fixed_score_string=None):
         if fixed_score_string is None:
             score -= 10
 
-def configure(args):
+def configure(args, all_nodes, all_zpools, zpool_order, all_lustre_services):
     cmd = 'pcs cluster setup --force --local'
     cmd += ' --name ' + args.cluster_name
     cmd += ' ' + args.mgmt_node
@@ -126,6 +128,7 @@ def configure(args):
         cmd = 'pcs resource create ' + zpool_resource + ' ocf:llnl:zpool'
         cmd += ' import_options="-f -N -d /dev/disk/by-vdev"'
         cmd += ' pool=' + zpool
+        # TODO should 805 be configurable?
         cmd += ' op start timeout=805'
         run(cmd, args)
 
@@ -167,7 +170,7 @@ Input an ldev.conf file to generate
 the complimentary Pacemaker cib.xml file.
 """.strip()
 
-parser = argparse.ArgumentParser(description=
+parser = argparse.ArgumentParser(description=description)
 parser.add_argument(
     'infile',
     nargs='?',
@@ -204,14 +207,14 @@ parser.add_argument(
     action='store_true'
 )
 
-def main():
+def main(test_args=None):
 
     all_nodes = []
     all_zpools = {}
     zpool_order = []
     all_lustre_services = {}
     lustre_service_order = []
-    args = parser.parse_args()
+    args = parser.parse_args(test_args)
 
     # turn it into a list, even if there is only one node
     if args.mgmt_node is None:
@@ -224,9 +227,9 @@ def main():
         process_ldev_line(line, all_nodes, all_zpools, all_lustre_services)
 
     if args.cluster_name is None:
-        args.cluster_name = deduce_cluster_name()
+        args.cluster_name = deduce_cluster_name(all_nodes)
 
-    configure(args)
+    configure(args, all_nodes, all_zpools, zpool_order, all_lustre_services)
 
 if __name__ == "__main__":
     main()

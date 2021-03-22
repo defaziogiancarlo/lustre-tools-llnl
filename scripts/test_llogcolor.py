@@ -51,11 +51,11 @@ def cmp_stdout_to_ref(test_args, reference):
     # create a temporary file
     # and set aim stdout at it
     fd, filename = tempfile.mkstemp()
-    f = open(filename, 'wb')
+    f = open(filename, 'w')
     sys.stdout = f
 
     # run llogcolor with test_args and save the return value
-    ret_val = llogcolor.main(test_args=test_args)
+    ret_val = llogcolor.main(args=test_args)
 
 
     # put stdout back to normal

@@ -20,14 +20,14 @@
 
 import argparse
 import datetime
+import errno
 import fileinput
 import os
 import pathlib
 import re
-import sys
-import subprocess
 import signal
-import errno
+import subprocess
+import sys
 
 colors = {
     "default": "\033[0m",
@@ -65,7 +65,7 @@ colors = {
 # Example line from a lustre log:
 # 00000020:00000080:2.0F:1192055998.876285:0:6848:0:(obd_config.c:714:class_process_config()) processing cmd: cf003
 pattern = re.compile(
-    r"(?P<begin>    \d+:\d+:\d+(\.\d+)?F?:)"
+    r"(?P<begin>     \d+:\d+:\d+(\.\d+)?F?:)"
     r"(?P<timestamp> \d+\.\d+)"
     r"(?P<middle>    :\d+:)"
     r"(?P<threadid>  \d+)"
@@ -88,20 +88,22 @@ color_round_robin = [
     "bright_red",
 ]
 
+
 def next_ansi_color():
     next_color = colors[color_round_robin[0]]
     color_round_robin.append(color_round_robin.pop(0))  # rotate the list
     return next_color
 
-description = """
-accepts a lustre log on stdin or as a filename on the command line,
-and outputs a colorized version of the log.  Lines are colored by task id.
-By default, and if stdout is a tty, the pager (less) is called to display
-the colorized log.
-""".strip()
 
-def main(test_args=None):
-    # Parse command-line options
+def make_parser():
+    """Create the argument parser."""
+    description = (
+        "accepts a lustre log on stdin or as a filename on the command line, "
+        "and outputs a colorized version of the log. "
+        "Lines are colored by task id. By default, and if stdout is a tty, "
+        "the pager (less) is called to display the colorized log."
+    )
+
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "-d",
@@ -137,15 +139,17 @@ def main(test_args=None):
         help="disable all colorization",
     )
     parser.add_argument(
-        "files",
-        nargs="*",
-        help="the log files to be processed",
+        "files", nargs="*", help="the log files to be processed",
     )
 
-    # allow for testing with different arguments here
-    # if __name__ == '__main__', test_args will be None
-    # and sys.argv will be used
-    args = parser.parse_args(args=test_args)
+    return parser
+
+
+def main(args=None):
+
+    parser = make_parser()
+    # if args aren't passed in, sys.argv is used
+    args = parser.parse_args(args=args)
 
     if not sys.stdout.isatty():
         args.pager = False
@@ -154,15 +158,16 @@ def main(test_args=None):
     combined = split_dir / "combined"
 
     if args.split:
-        # NOTE the mode here is the default, which is 0777
-        # and is unchanged from the python2 version
         split_dir.mkdir()
-        output = combined.open(mode='w')
+        output = combined.open(mode="w")
         pager = None
-        # TODO figure out why 'pass' is here
-        pass
     elif args.pager:
-        pager = subprocess.Popen(["less", "-KXRS"], stdin=subprocess.PIPE)
+        # open with encoding specified so that the subprocess
+        # can accept strings as input, not bytes
+        # this makes is consistent with the other possible outputs
+        pager = subprocess.Popen(
+            ["less", "-KXRS"], stdin=subprocess.PIPE, encoding="utf-8"
+        )
         output = pager.stdin
     else:
         pager = None
@@ -172,16 +177,15 @@ def main(test_args=None):
     thread_color = {}
     thread_file = {}
     try:
-        # TODO update this to be files, not args
-        # depends on adding positional args to the parser
         for line in fileinput.input(files=args.files):
             result = pattern.match(line)
             if not result:
-                output.write(line.encode())
+                output.write(line)
                 continue
 
             tid = result.group("threadid")
             ts = result.group("timestamp")
+
 
             if tid not in thread_color:
                 if not args.color:
@@ -216,11 +220,7 @@ def main(test_args=None):
                     + "\n"
                 )
 
-            # NOTE this a python2 vs python3 differnce
-            # python2 wanted a string, python3 wants bytes
-            # TODO should this be ascii?
-            # be default encode() does utf-8
-            output.write(line.encode())
+            output.write(line)
             if args.split:
                 thread_file[tid].write(line)
     except KeyboardInterrupt:
@@ -236,7 +236,7 @@ def main(test_args=None):
         raise
 
     if args.color:
-        output.write(colors["default"].encode())
+        output.write(colors["default"])
     output.close()
 
     if args.split:
