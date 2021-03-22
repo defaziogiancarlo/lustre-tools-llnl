@@ -139,7 +139,9 @@ def make_parser():
         help="disable all colorization",
     )
     parser.add_argument(
-        "files", nargs="*", help="the log files to be processed",
+        "files",
+        nargs="*",
+        help="the log files to be processed",
     )
 
     return parser
