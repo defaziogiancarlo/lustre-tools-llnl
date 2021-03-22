@@ -58,6 +58,8 @@ systems. The python2 version I got from conda doesn't match what llnl has right 
 
 ### ldev2pcs
 
+syntax overhaul in progress.
+
 ### lflush
 
 ### llogcolor
@@ -73,13 +75,22 @@ to [pathlib](https://docs.python.org/3.6/library/pathlib.html) for file and dire
 path operations.
 
 #### outstanding issues
-Issue with bytes vs. strings. This might be due to how I'm testing,
-which involves redirecting `sys.stdout` to a file opened in binary mode.
+~~Issue with bytes vs. strings. This might be due to how I'm testing,
+which involves redirecting `sys.stdout` to a file opened in binary mode.~~
+
+Bytes vs. strings issue seems to be fixed. I changed it to always use strings.
 
 When no file is given, python2 version echos input with I press `enter`,
 python3 version does not.
 I don't know if this really matters, I don't think it's meant to be used with manual
 input. Both versions work with multiple files, or with stdin redirection from a file.
+
+Strange issue where some file names are colored brown. Happens in the python2 version.
+Doesn't seem to hurt anything.
+
+Behavior not well documented:
+I think you need to specify `-s` and `-P` to write out the files. There doesn't
+seem to be any files written without `-s`. Shouldn't there still be a `combined`?
 
 Some ideas for more tests:
 - read in several files
@@ -101,3 +112,7 @@ to be able to know if the functionality is being changed or not.
 ### zpool
 
 ### lustre
+
+### osthistogram
+
+adding argparse
