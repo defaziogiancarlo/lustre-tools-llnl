@@ -11,3 +11,4 @@ config.status
 configure
 src/.deps
 stamp-h1
+scripts/__pycache__/
