@@ -73,6 +73,9 @@ pattern = re.compile(
     re.VERBOSE,
 )
 
+# color_round_robin and round_robin_index
+# are used to select the color for the next
+# threadid encountered in the logs
 color_round_robin = [
     "green",
     "yellow",
@@ -88,17 +91,27 @@ color_round_robin = [
     "bright_red",
 ]
 
+# incremented (mod len(color_round_robin)) by next_ansi_color
+# reset to 0 by main
+round_robin_index = 0
+
 
 def next_ansi_color():
-    next_color = colors[color_round_robin[0]]
-    color_round_robin.append(color_round_robin.pop(0))  # rotate the list
+    """Get the next color from color_round_robin.
+    Really this mean getting the first color, then effectively
+    rotating color_round_robin one index to the left by incrementing
+    round_robin_index, which persists to the next time this
+    function is called.
+    """
+    next_color = colors[color_round_robin[round_robin_index]]
+    round_robin_index = (round_robin_index + 1) % len(color_round_robin)
     return next_color
 
 
 def make_parser():
     """Create the argument parser."""
     description = (
-        "accepts a lustre log on stdin or as a filename on the command line, "
+        "Accepts a lustre log on stdin or as a filename on the command line, "
         "and outputs a colorized version of the log. "
         "Lines are colored by task id. By default, and if stdout is a tty, "
         "the pager (less) is called to display the colorized log."
@@ -156,6 +169,11 @@ def main(args=None):
     if not sys.stdout.isatty():
         args.pager = False
 
+    # always set round_robin_index to 0
+    # this makes the color ordering the same every time main is called
+    # this is to make the color order consistent for testing purposes
+    round_robin_index = 0
+
     split_dir = pathlib.Path("/tmp/llogcolor.{}".format(os.getpid()))
     combined = split_dir / "combined"
 
@@ -166,7 +184,7 @@ def main(args=None):
     elif args.pager:
         # open with encoding specified so that the subprocess
         # can accept strings as input, not bytes
-        # this makes is consistent with the other possible outputs
+        # this makes it behave like the other possible outputs
         pager = subprocess.Popen(
             ["less", "-KXRS"], stdin=subprocess.PIPE, encoding="utf-8"
         )
@@ -187,7 +205,6 @@ def main(args=None):
 
             tid = result.group("threadid")
             ts = result.group("timestamp")
-
 
             if tid not in thread_color:
                 if not args.color:
@@ -252,7 +269,8 @@ def main(args=None):
         filenames = [combined] + filenames
         if args.pager:
             try:
-                pager = subprocess.Popen(["less", "-RK", "--force"] + filenames)
+                pager = subprocess.Popen(["less", "-RK", "--force"]
+                                         + filenames)
                 pager.wait()
             except KeyboardInterrupt:
                 pager.send_signal(signal.SIGINT)
