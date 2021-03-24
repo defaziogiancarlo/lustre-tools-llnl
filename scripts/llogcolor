@@ -75,7 +75,7 @@ pattern = re.compile(
     re.VERBOSE,
 )
 
-# color_round_robin and round_robin_index
+# color_round_robin and color_index (defined in main)
 # are used to select the color for the next
 # threadid encountered in the logs
 color_round_robin = [
@@ -92,22 +92,6 @@ color_round_robin = [
     "bright_white",
     "bright_red",
 ]
-
-# incremented (mod len(color_round_robin)) by next_ansi_color
-# reset to 0 by main
-round_robin_index = 0
-
-
-def next_ansi_color():
-    """Get the next color from color_round_robin.
-    Really this mean getting the first color, then effectively
-    rotating color_round_robin one index to the left by incrementing
-    round_robin_index, which persists to the next time this
-    function is called.
-    """
-    next_color = colors[color_round_robin[round_robin_index]]
-    round_robin_index = (round_robin_index + 1) % len(color_round_robin)
-    return next_color
 
 
 def make_parser():
@@ -171,10 +155,8 @@ def main(args=None):
     if not sys.stdout.isatty():
         args.pager = False
 
-    # always set round_robin_index to 0
-    # this makes the color ordering the same every time main is called
-    # this is to make the color order consistent for testing purposes
-    round_robin_index = 0
+    # used to do a round-robin color selection
+    color_index = 0
 
     split_dir = pathlib.Path("/tmp/llogcolor.{}".format(os.getpid()))
     combined = split_dir / "combined"
@@ -214,7 +196,11 @@ def main(args=None):
                 elif tid == args.thread:
                     thread_color[tid] = colors["black"] + colors["on_cyan"]
                 else:
-                    thread_color[tid] = next_ansi_color()
+                    # select the next color from color_round_robin
+                    # then increment the color_index
+                    thread_color[tid] = colors[color_round_robin[color_index]]
+                    round_robin_index = ((color_index + 1)
+                                         % len(color_round_robin))
                 if args.split:
                     thread_file[tid] = (split_dir / tid).open("w")
 
