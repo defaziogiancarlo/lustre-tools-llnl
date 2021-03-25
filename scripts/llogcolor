@@ -197,9 +197,7 @@ def main(args=None):
                     # select the next color from color_round_robin
                     # then increment the color_index
                     thread_color[tid] = colors[color_round_robin[color_index]]
-                    round_robin_index = (color_index + 1) % len(
-                        color_round_robin
-                    )
+                    color_index = (color_index + 1) % len(color_round_robin)
                 if args.split:
                     thread_file[tid] = (split_dir / tid).open("w")
 
