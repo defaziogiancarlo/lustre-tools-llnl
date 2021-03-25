@@ -237,7 +237,7 @@ def main(args=None):
         num, strerror = ioerror
         if pager:
             pager.kill()
-        if num == errno.EPIPE:  # Ignore 'Broken pipe', user quit less
+        if num == errno.EPIPE:  # Ignore "Broken pipe", user quit less
             return 0
         raise
 
