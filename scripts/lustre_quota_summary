@@ -74,6 +74,7 @@ def get_usage(ids, userorgroup, mountpt, obd_uuid):
         command += [mountpt]
         lfs = Popen(command, stdout=PIPE, stderr=PIPE)
         stdout, stderr = lfs.communicate()
+        stdout = stdout.decode()
         for line in stdout.split("\n"):
             line.strip()
             if not line:
