@@ -20,12 +20,13 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-from subprocess import Popen, PIPE
-import sys
-import os
+import argparse
+import grp
 import operator
-import optparse
-
+import os
+import pwd
+import subprocess
+import sys
 
 def try_int(st):
     """Convert string to integer if possible.  Otherwise, return string."""
@@ -34,7 +35,7 @@ def try_int(st):
     except:
         pass
     try:
-        st.strip("[]")
+        st = st.strip("[]")
         return int(st)
     except:
         pass
@@ -53,7 +54,7 @@ def shorten_size(kbytes, significant_digits):
 
         decimal_precision = 0
         for i in range(significant_digits):
-            if (int(size) / (10 ** i)) == 0:
+            if (int(size) // (10 ** i)) == 0:
                 decimal_precision = significant_digits - i
                 break
 
@@ -72,11 +73,13 @@ def get_usage(ids, userorgroup, mountpt, obd_uuid):
             command += ["-g"]
         command += [str(ident)]
         command += [mountpt]
-        lfs = Popen(command, stdout=PIPE, stderr=PIPE)
-        stdout, stderr = lfs.communicate()
-        stdout = stdout.decode()
+        lfs = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+        )
+        stdout = lfs.stdout.decode()
         for line in stdout.split("\n"):
-            line.strip()
+            line = line.strip()
             if not line:
                 continue
 
@@ -126,18 +129,96 @@ def get_ids_from_directory(directory, userorgroup):
 
 def get_ids_from_etc(userorgroup):
     if userorgroup == "user":
-        import pwd
-
         ids_list = [(pw.pw_uid, pw.pw_name) for pw in pwd.getpwall()]
     elif userorgroup == "group":
-        import grp
-
         ids_list = [(gr.gr_gid, gr.gr_name) for gr in grp.getgrall()]
     else:
         raise "Unsupported userorgroup type"
 
     ids = dict(ids_list)
     return ids
+
+
+def make_parser():
+    '''Create the argument parser.'''
+
+    parser = argparse.Argument_parser()
+    parser.add_argument(
+        "-s",
+        action="store_true",
+        dest="sort_by_space",
+        help="Sort output by space used (default)",
+    )
+    parser.add_argument(
+        "-f",
+        action="store_false",
+        dest="sort_by_space",
+        help="Sort output by number of files used",
+    )
+    parser.add_argument(
+        "-o",
+        metavar="obd_uuid",
+        dest="obd_uuid",
+        help="Show usage for a single obd_uuid",
+    )
+    parser.add_argument(
+        "-u",
+        action="store_const",
+        const="user",
+        dest="userorgroup",
+        help="Report on usage by user (default)",
+    )
+    parser.add_argument(
+        "-g",
+        action="store_const",
+        const="group",
+        dest="userorgroup",
+        help="Report on usage by group",
+    )
+    parser.add_argument(
+        "-d",
+        action="store_true",
+        dest="dirscan",
+        help=(
+            "Report on users/groups owning the top-level "
+            "directories in the target filesystem. (default)"
+        )
+    )
+    parser.add_argument(
+        "-e",
+        action="store_true",
+        dest="etcscan",
+        help=(
+            "Report on users or groups in /etc/passwd or /etc/groups, "
+            "respectively. (Can be specified together with -d. "
+            "Lists are merged.)"
+        )
+    parser.add_argument(
+        "-M",
+        action="store_true",
+        dest="machine",
+        help="Machine readable output (no units, no header...)",
+    )
+    parser.add_argument(
+        "-q",
+        action="store_true",
+        dest="quiet",
+        help="Quiet (Suppress header output)",
+    )
+
+    # TODO do a single positional argument
+    parser.add_argument(
+        'mountpt'
+        help="the path of the mountpoint for the lustre file system"
+    )
+
+    parser.set_defaults(
+        userorgroup="user",
+        sort_by_space=True
+    )
+
+    return parser
+
 
 
 def main():
